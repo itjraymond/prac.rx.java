@@ -2,24 +2,27 @@ package ca.jent;
 
 
 import io.reactivex.Observable;
-import io.reactivex.Observer;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.schedulers.Schedulers;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
-import static org.awaitility.Awaitility.await;
 
 
 public class TestRxJava {
@@ -185,4 +188,52 @@ public class TestRxJava {
             RxJavaPlugins.reset();
         }
     }
+
+    @Rule
+    public final ImmediateSchedulerRule schedulers = new ImmediateSchedulerRule();
+
+    @Test
+    public void testUsingImmediateSchedulersRule() {
+        // given:
+        TestObserver<String> observer = new TestObserver<>();
+        Observable<String> observable = Observable
+                .fromIterable(WORDS)
+                .zipWith(
+                        Observable.range(1, Integer.MAX_VALUE),
+                        (str, idx) -> String.format("%2d. %s", idx, str)
+                );
+
+        // when:
+        observable.subscribeOn(Schedulers.computation()).subscribe(observer);
+
+        // then:
+        observer.assertComplete();
+        observer.assertNoErrors();
+        observer.assertValueCount(9);
+        assertThat(observer.values(), hasItem(" 4. fox"));
+
+    }
+
+
+    private static class ImmediateSchedulerRule implements TestRule {
+
+        @Override
+        public Statement apply(final Statement base, Description description) {
+            return new Statement() {
+                @Override
+                public void evaluate() throws Throwable {
+                    RxJavaPlugins.setIoSchedulerHandler(scheduler -> Schedulers.trampoline());
+                    RxJavaPlugins.setComputationSchedulerHandler(scheduler -> Schedulers.trampoline());
+                    RxJavaPlugins.setNewThreadSchedulerHandler(scheduler -> Schedulers.trampoline());
+
+                    try {
+                        base.evaluate();
+                    } finally {
+                        RxJavaPlugins.reset();
+                    }
+                }
+            };
+        }
 }
+}
+
