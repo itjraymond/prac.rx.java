@@ -2,7 +2,9 @@ package ca.jent;
 
 
 import io.reactivex.Observable;
+import io.reactivex.Observer;
 import io.reactivex.observers.TestObserver;
+import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.schedulers.Schedulers;
 import org.junit.Test;
 
@@ -157,5 +159,30 @@ public class TestRxJava {
         observer.assertComplete();
         observer.assertNoErrors();
         assertThat(observer.values(), hasItem(" 4. fox"));
+    }
+
+    @Test
+    public void testUsingRxJavaPluginsWithImmediateScheduler() {
+        // given:
+        RxJavaPlugins.setComputationSchedulerHandler(scheduler -> Schedulers.trampoline());
+        TestObserver<String> observer = new TestObserver<>();
+        Observable<String> observable = Observable
+                .fromIterable(WORDS)
+                .zipWith(
+                        Observable.range(1, Integer.MAX_VALUE),
+                        (str, counter) -> String.format("%2d. %s", counter, str)
+                );
+
+        try {
+            // when:
+            observable.subscribeOn(Schedulers.computation()).subscribe(observer);
+            // then:
+            observer.assertComplete();
+            observer.assertNoErrors();
+            observer.assertValueCount(9);
+            assertThat(observer.values(), hasItem(" 4. fox"));
+        } finally {
+            RxJavaPlugins.reset();
+        }
     }
 }
