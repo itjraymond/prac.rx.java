@@ -5,6 +5,7 @@ import io.reactivex.Observable;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.schedulers.TestScheduler;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -234,6 +235,40 @@ public class TestRxJava {
                 }
             };
         }
-}
+    }
+
+    @Test
+    public void testUsingTestScheduler() {
+        //given:
+        TestScheduler scheduler = new TestScheduler();
+        TestObserver<String> observer = new TestObserver<>();
+        Observable<Long> tick = Observable.interval(1, SECONDS, scheduler);
+
+        Observable<String> observable = Observable
+                .fromIterable(WORDS)
+                .zipWith(
+                        tick,
+                        (str, idx) -> String.format("%2d. %s", idx, str)
+                );
+        observable.subscribeOn(scheduler).subscribe(observer);
+
+        // expect:
+        observer.assertNoValues();
+        observer.assertNotComplete();
+
+        // when:
+        scheduler.advanceTimeBy(1, SECONDS);
+
+        // then:
+        observer.assertNoErrors();
+        observer.assertValueCount(1);
+        observer.assertValues(" 0. the");
+
+        // when:
+        scheduler.advanceTimeTo(9, SECONDS);
+        observer.assertComplete();
+        observer.assertNoErrors();
+        observer.assertValueCount(9);
+    }
 }
 
