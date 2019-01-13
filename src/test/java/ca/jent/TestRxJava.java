@@ -271,30 +271,5 @@ public class TestRxJava {
         observer.assertValueCount(9);
     }
 
-    private static class TestSchedulerRule implements TestRule {
-        private final TestScheduler testScheduler = new TestScheduler();
-
-        public TestScheduler getTestScheduler() {
-            return testScheduler;
-        }
-
-        @Override
-        public Statement apply(Statement base, Description description) {
-            return new Statement() {
-                @Override
-                public void evaluate() throws Throwable {
-                    RxJavaPlugins.setIoSchedulerHandler(scheduler -> testScheduler);
-                    RxJavaPlugins.setComputationSchedulerHandler(scheduler -> testScheduler);
-                    RxJavaPlugins.setNewThreadSchedulerHandler(scheduler -> testScheduler);
-
-                    try {
-                        base.evaluate();
-                    } finally {
-                        RxJavaPlugins.reset();
-                    }
-                }
-            };
-        }
-    }
 }
 
